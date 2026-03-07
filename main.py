@@ -6,7 +6,7 @@ app = FastAPI()
 
 BASE_URL = "https://mutah.app/api/v2"
 
-# ✅ نموذج للطلب اللي رح ييجي من الموقع
+
 class ChatRequest(BaseModel):
     message: str
     storeId: str = "693317265438"
@@ -20,7 +20,6 @@ def login() -> str:
         timeout=20,
     )
 
-    # ✅ نطبع الرد عشان نعرف وين التوكن موجود
     print("LOGIN STATUS:", r.status_code)
     print("LOGIN JSON:", r.json())
 
@@ -58,7 +57,6 @@ def get_products(token: str, store_id: str, page_size: int, page: int):
     return r.json()
 
 def build_context(products_json: dict) -> str:
-    # ⚠️ أحياناً شكل الـ JSON يختلف، فبنحاول نطلع قائمة المنتجات بأكثر من طريقة
     data = products_json.get("data")
 
     if isinstance(data, list):
@@ -80,7 +78,7 @@ def build_context(products_json: dict) -> str:
 
 @app.get("/")
 def home():
-    return {"message": "Chatbot service is running 🚀"}
+    return {"message": "Chatbot service is running "}
 
 @app.post("/chat")
 def chat(req: ChatRequest):
@@ -89,8 +87,6 @@ def chat(req: ChatRequest):
         products_json = get_products(token, req.storeId, req.pageSize, req.page)
         context = build_context(products_json)
 
-        # ✅ حالياً بنرجّع المنتجات كنص (للتأكد إن الربط شغال)
-        # بعد ما تتأكد، بنضيف ollama عشان يعمل الرد الذكي.
         return {
             "user_message": req.message,
             "products_context": context,
