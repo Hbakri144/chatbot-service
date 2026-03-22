@@ -1,10 +1,14 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import requests
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI()
 
-BASE_URL = "https://mutah.app/api/v2"
+BASE_URL = os.getenv("BASE_URL")
 all_products = []
 
 
@@ -15,8 +19,11 @@ class ChatRequest(BaseModel):
 def login() -> str:
     r = requests.post(
         f"{BASE_URL}/auth/login",
-        json={"identifier": "ai@mutah.app", "password": "123123123"},
-        timeout=20,
+        json={
+            "identifier": os.getenv("API_USER"),
+            "password": os.getenv("API_PASS")
+        },
+        timeout=20
     )
 
     print("LOGIN STATUS:", r.status_code)
@@ -27,8 +34,8 @@ def login() -> str:
     token = r.json().get("token")
     if not token:
         raise RuntimeError("No token returned from login")
-    return token
 
+    return token
 
 def load_products_once():
     global all_products
@@ -76,16 +83,40 @@ def build_context(products) -> str:
     return "\n".join(lines) if lines else "No products returned."
 
 def filter_products(message, products):
-    msg = message.lower()
+    msg = message.lower().strip()
 
-    # أرخص منتج
-    if "ارخص" in msg or "cheapest" in msg:
-        return sorted(products, key=lambda x: x.get("price", 9999))[:5]
+    # تنظيف السعر
+    def get_price(p):
+        price = p.get("price") or p.get("salePrice") or p.get("finalPrice") or 999999
+        try:
+            return float(price)
+        except:
+            return 999999
 
-    # بحث بالاسم
+    #  أرخص
+    if "ارخص" in msg or "cheap" in msg:
+        return sorted(products, key=get_price)[:5]
+
+    #  أغلى
+    if "اغلى" in msg or "expensive" in msg:
+        return sorted(products, key=get_price, reverse=True)[:5]
+
+    #  كلمات عامة (فئات)  
+    keywords = [
+        "ورد", "bouquet", "flower", "gift", "box", "love", "birthday"
+    ]
+
+    for k in keywords:
+        if k in msg:
+            return [
+                p for p in products
+                if k in (p.get("name", "").lower())
+            ][:5]
+
+    #  بحث عام (أي كلمة)
     return [
         p for p in products
-        if msg in (p.get("name", "").lower())
+        if any(word in (p.get("name", "").lower()) for word in msg.split())
     ][:5]
 
 
@@ -93,15 +124,23 @@ def ask_ai(message, context):
     import requests
 
     prompt = f"""
-انت مساعد متجر
+أنت مساعد متجر ذكي.
 
-السؤال:
+مهم جداً:
+- جاوب فقط اعتماداً على المنتجات المعطاة.
+- لا تخترع منتجات غير موجودة.
+- إذا ما كان في منتج مناسب، قل: "لا يوجد منتج مطابق حالياً."
+- جاوب بالعربي بشكل قصير وواضح.
+- إذا كان السؤال عن الأرخص أو الأغلى، اذكر اسم المنتج وسعره.
+- إذا كان هناك أكثر من خيار مناسب، اذكر أفضل 3 فقط.
+
+سؤال المستخدم:
 {message}
 
-المنتجات:
+المنتجات المتاحة:
 {context}
 
-جاوب بشكل طبيعي وبالعربي.
+الجواب:
 """
 
     r = requests.post(
@@ -115,8 +154,6 @@ def ask_ai(message, context):
     )
 
     return r.json()["response"]
-
-
 
 
 
