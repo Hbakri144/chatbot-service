@@ -1,0 +1,20 @@
+{
+  "1234": [
+    {
+      "role": "user",
+      "content": "hi"
+    },
+    {
+      "role": "bot",
+      "content": "Hi there! How can I help you today?"
+    },
+    {
+      "role": "user",
+      "content": "hi"
+    },
+    {
+      "role": "bot",
+      "content": "Hi there! Welcome to our store. How may I assist you today?"
+    }
+  ]
+}
